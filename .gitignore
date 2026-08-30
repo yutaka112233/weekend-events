@@ -1,0 +1,9 @@
+# 週次実行のログ（ローカルのみで十分。公開リポジトリに残す必要はない）
+logs/
+
+# 直前のバックアップ（events.json.bak）。中身は events.json と同じ情報なので不要
+*.bak
+
+# Windows のゴミファイル
+Thumbs.db
+desktop.ini

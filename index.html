@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>週末のおでかけイベント｜横浜</title>
+
+<!-- iPhoneのホーム画面に追加したときアプリのように見せるための設定 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="週末おでかけ">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FF8A3D">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFF8F0;
+    --bg-grad-a:#FFE9D6;
+    --bg-grad-b:#E4F4FF;
+    --card:#FFFFFF;
+    --ink:#3A3226;
+    --ink-soft:#6E6355;
+    --ink-faint:#948877;
+    --line:#EFE3D4;
+    --accent:#FF8A3D;
+    --accent-deep:#E96A18;
+    --accent-soft:#FFF0E2;
+    --teal:#1FA6A6;
+    --teal-soft:#E2F6F5;
+    --pink-soft:#FDE8F0;
+    --warn:#D93F2B;
+    --warn-bg:#FFF0EC;
+    --warn-line:#F5B9AC;
+    --stale-bg:#FFF6DC;
+    --stale-line:#EBC96A;
+    --stale-ink:#8A6410;
+    --radius:16px;
+    --shadow:0 2px 4px rgba(90,70,50,.05), 0 8px 20px rgba(90,70,50,.07);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    background-image:linear-gradient(160deg,var(--bg-grad-a) 0%,var(--bg) 38%,var(--bg) 62%,var(--bg-grad-b) 100%);
+    background-attachment:fixed;
+    line-height:1.7;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 64px;}
+
+  /* ---------- header ---------- */
+  .site-head{text-align:center;padding:12px 0 20px;}
+  .site-head h1{
+    font-family:"Zen Maru Gothic",sans-serif;font-weight:700;
+    font-size:clamp(22px,5.2vw,32px);margin:0 0 10px;letter-spacing:.02em;
+  }
+  .site-head h1 .em{color:var(--accent-deep);}
+  .period{
+    display:inline-block;font-family:"Zen Maru Gothic",sans-serif;font-weight:700;
+    font-size:clamp(15px,3.6vw,19px);color:#fff;background:var(--accent);
+    padding:6px 18px;border-radius:999px;box-shadow:var(--shadow);
+  }
+  .meta-line{margin-top:10px;font-size:13px;color:var(--ink-soft);}
+
+  /* ---------- banners ---------- */
+  .banner{
+    border-radius:var(--radius);padding:12px 16px;margin:0 0 12px;
+    font-size:14px;display:flex;gap:10px;align-items:flex-start;
+  }
+  .banner .ico{flex:0 0 auto;font-size:17px;line-height:1.4;}
+  .banner-notice{background:#fff;border:1px solid var(--line);color:var(--ink-soft);box-shadow:var(--shadow);}
+  .banner-stale{background:var(--stale-bg);border:1px solid var(--stale-line);color:var(--stale-ink);font-weight:500;}
+  .banner-sample{background:var(--teal-soft);border:1px solid #A8DFDC;color:#0E6E6E;font-weight:500;}
+
+  /* ---------- criteria ---------- */
+  .criteria{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin:0 0 16px;overflow:hidden;
+  }
+  .criteria > summary{
+    list-style:none;cursor:pointer;padding:14px 18px;min-height:44px;
+    font-family:"Zen Maru Gothic",sans-serif;font-weight:700;font-size:15px;
+    display:flex;align-items:center;gap:8px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .criteria > summary::-webkit-details-marker{display:none;}
+  .criteria > summary::after{
+    content:"\25BC";margin-left:auto;font-size:11px;color:var(--ink-faint);
+    transition:transform .2s;
+  }
+  .criteria[open] > summary::after{transform:rotate(180deg);}
+  .criteria-body{padding:0 18px 16px;border-top:1px dashed var(--line);}
+  .criteria dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:14px 0 0;font-size:14px;}
+  .criteria dt{color:var(--ink-faint);white-space:nowrap;font-weight:500;}
+  .criteria dd{margin:0;}
+
+  /* ---------- filters ----------
+     横スクロールの1本の帯にする（画面幅からはみ出させず、折り返しもさせない）。
+     ラベルだけは折り返さずスクロール領域の外に固定して見せる。
+  ------------------------------------------------------------------ */
+  .filters{margin:0 0 8px;}
+  .filter-group{
+    display:flex;flex-wrap:nowrap;gap:8px;align-items:center;margin-bottom:10px;
+    overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:2px 2px 6px;margin:0 -2px 4px;
+  }
+  .filter-group::-webkit-scrollbar{display:none;}
+  .filter-group .glabel{
+    flex:0 0 auto;font-size:12px;color:var(--ink-faint);font-weight:500;
+    margin-right:2px;
+  }
+  .fbtn{
+    flex:0 0 auto;
+    font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;
+    border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);
+    padding:7px 16px;border-radius:999px;transition:all .15s;line-height:1.4;
+    min-height:44px;display:inline-flex;align-items:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .fbtn:hover{border-color:var(--accent);color:var(--accent-deep);}
+  .fbtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(255,138,61,.35);}
+  .fbtn.day[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);box-shadow:0 2px 8px rgba(31,166,166,.3);}
+  .fbtn.all[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);box-shadow:none;}
+  .result-count{font-size:13px;color:var(--ink-soft);margin:6px 2px 14px;}
+  .result-count b{color:var(--accent-deep);font-size:15px;}
+
+  /* ---------- cards ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start;}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:10px;
+  }
+  .card.check{border:2px solid var(--warn-line);background:var(--warn-bg);}
+  .card h2{
+    font-family:"Zen Maru Gothic",sans-serif;font-weight:700;
+    font-size:17px;margin:0;line-height:1.5;
+  }
+  .badges{display:flex;flex-wrap:wrap;gap:6px;}
+  .badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;line-height:1.6;}
+  .b-free{background:var(--pink-soft);color:#C22E67;}
+  .b-day{background:var(--teal-soft);color:#0E6E6E;}
+  .b-near{background:var(--accent-soft);color:var(--accent-deep);}
+  .b-indoor{background:#EDEAFB;color:#5B4BB5;}
+  .b-area{background:#F1EDE6;color:var(--ink-soft);}
+  .b-manual{background:#FFF3C4;color:#8A6400;}
+  .card.manual{box-shadow:0 0 0 2px #FFD75E inset, var(--shadow);}
+  .rows{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:13.5px;margin:0;}
+  .rows dt{color:var(--ink-faint);white-space:nowrap;font-weight:500;}
+  .rows dd{margin:0;}
+  .note{font-size:13.5px;color:var(--ink-soft);margin:0;}
+  .kid{
+    background:var(--accent-soft);border-radius:11px;padding:10px 12px;
+    font-size:13px;color:#8A4A12;margin:0;
+  }
+  .kid b{font-family:"Zen Maru Gothic",sans-serif;}
+  .checkbox{
+    background:#fff;border:1.5px solid var(--warn-line);border-radius:11px;
+    padding:10px 12px;font-size:13px;color:var(--warn);font-weight:500;margin:0;
+  }
+  .checkbox b{font-family:"Zen Maru Gothic",sans-serif;}
+  .card .go{margin-top:auto;padding-top:4px;}
+  .card .go a{
+    display:inline-flex;align-items:center;min-height:44px;
+    font-size:14px;font-weight:700;text-decoration:none;
+    color:var(--accent-deep);border:1.5px solid var(--accent);border-radius:999px;
+    padding:6px 18px;transition:all .15s;-webkit-tap-highlight-color:transparent;
+  }
+  .card .go a:hover{background:var(--accent);color:#fff;}
+
+  .empty,.error{
+    background:#fff;border:1px dashed var(--line);border-radius:var(--radius);
+    padding:32px 20px;text-align:center;color:var(--ink-soft);font-size:14px;
+  }
+  .error{border:1.5px solid var(--warn-line);color:var(--warn);text-align:left;}
+  .error p{margin:0 0 8px;}
+  .error code{
+    display:block;background:#2E2A24;color:#FFD9B3;padding:10px 12px;border-radius:8px;
+    font-size:12.5px;margin:10px 0 0;overflow-x:auto;white-space:pre;
+  }
+  footer{text-align:center;font-size:12px;color:var(--ink-faint);margin-top:40px;}
+
+  /* iPhoneを含むスマホ幅: カードは常に縦1列。文字サイズは縮めない
+     （Safariの自動縮小は body の -webkit-text-size-adjust:100% で別途防止済み）。 */
+  @media (max-width:640px){
+    .wrap{padding:14px 12px 48px;}
+    .grid{grid-template-columns:1fr;gap:14px;}
+    .card{padding:16px;}
+    .criteria dl{grid-template-columns:1fr;gap:2px;}
+    .criteria dt{margin-top:8px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site-head">
+    <h1>🎈 週末の<span class="em">おでかけ</span>イベント</h1>
+    <div id="period" class="period">読み込み中…</div>
+    <div id="metaLine" class="meta-line"></div>
+  </header>
+
+  <div id="banners"></div>
+
+  <div class="banner banner-notice">
+    <span class="ico">⚠️</span>
+    <span>中止・変更の可能性があるため、おでかけ前に必ず<b>公式サイトで最新情報を確認</b>してください。</span>
+  </div>
+
+  <details class="criteria" id="criteriaBox">
+    <summary>🔍 検索条件</summary>
+    <div class="criteria-body"><dl id="criteriaList"></dl></div>
+  </details>
+
+  <div class="filters" id="filters" hidden>
+    <div class="filter-group">
+      <span class="glabel">曜日</span>
+      <button class="fbtn all" data-kind="all" aria-pressed="true">すべて</button>
+      <button class="fbtn day" data-kind="day" data-key="isSat" aria-pressed="false">土曜</button>
+      <button class="fbtn day" data-kind="day" data-key="isSun" aria-pressed="false">日曜</button>
+      <button class="fbtn day" data-kind="day" data-key="isHoliday" aria-pressed="false">祝日</button>
+    </div>
+    <div class="filter-group">
+      <span class="glabel">条件</span>
+      <button class="fbtn" data-kind="flag" data-key="isFree" aria-pressed="false">無料のみ</button>
+      <button class="fbtn" data-kind="flag" data-key="isNear" aria-pressed="false">横浜駅30分以内</button>
+      <button class="fbtn" data-kind="flag" data-key="isIndoor" aria-pressed="false">屋内</button>
+    </div>
+  </div>
+
+  <div id="count" class="result-count"></div>
+  <main id="list" class="grid"></main>
+
+  <footer>横浜駅起点・3歳の子どもと行ける週末イベントまとめ</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STALE_DAYS = 10;
+  var state = { days: [], flags: [] };
+  var data = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) { n.className = cls; }
+    if (text != null) { n.textContent = text; }
+    return n;
+  }
+
+  // 見出し + 本文（本文はテキストノードなので HTML は解釈されない）
+  function labelled(cls, headText, bodyText) {
+    var p = el("p", cls);
+    p.appendChild(el("b", null, headText));
+    p.appendChild(document.createElement("br"));
+    p.appendChild(document.createTextNode(bodyText));
+    return p;
+  }
+
+  /* ---------- load ----------
+     読み込みは2段構え × 2系統。
+       1) *.json を fetch する（サーバー経由・GitHub Pages経由で開いたとき）
+       2) 失敗したら *.js を <script> で読む
+          （index.html をダブルクリック＝file:// で開いたとき。
+            ブラウザの制限で fetch は使えないが <script> なら読める）
+     *.js は *.json と同じ内容で、update.bat が自動生成します。
+
+     events.json      … 自動更新される本体データ（必須。読めないとエラー表示）
+     manual-events.json … 手で追加するお気に入りスポット（任意。無くても・
+                           壊れていても静かに無視して本体だけ表示する）
+  ------------------------------------------------------------------ */
+  function loadSource(jsonFile, jsFile, varName) {
+    return fetch(jsonFile + "?_=" + Date.now(), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) { throw new Error("HTTP " + r.status); }
+        return r.json();
+      })
+      .catch(function () {
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = jsFile + "?_=" + Date.now();
+          s.onload = function () {
+            if (window[varName]) { resolve(window[varName]); }
+            else { reject(new Error(jsFile + " の中身が読み取れませんでした")); }
+          };
+          s.onerror = function () { reject(new Error(jsonFile + " / " + jsFile + " のどちらも読み込めませんでした")); };
+          document.head.appendChild(s);
+        });
+      });
+  }
+
+  loadSource("events.json", "events.js", "__EVENTS__")
+    .then(function (json) {
+      data = json;
+      if (!Array.isArray(data.events)) { data.events = []; }
+      data.events.forEach(function (ev) { ev._isManual = false; });
+      return loadSource("manual-events.json", "manual-events.js", "__MANUAL_EVENTS__")
+        .then(function (manual) {
+          var extra = (manual && Array.isArray(manual.events)) ? manual.events : [];
+          extra.forEach(function (ev) { ev._isManual = true; });
+          data.events = extra.concat(data.events);
+        })
+        .catch(function (err) {
+          // 手動追加分は任意項目。読めなくても本体の表示は続ける。
+          console.warn("manual-events.json を読み込めませんでした（無視して続行）:", err);
+        });
+    })
+    .then(render)
+    .catch(function (err) { showLoadError(err); });
+
+  function showLoadError(reason) {
+    var box = el("div", "error");
+    box.appendChild(el("p", null, "イベントデータを読み込めませんでした。"));
+    box.appendChild(el("p", null,
+      "index.html と同じフォルダに events.json と events.js があるか確認してください。" +
+      "events.js が無い場合は update.bat を1回実行すると作られます。"));
+    box.appendChild(el("code", null, String(reason && reason.message ? reason.message : reason)));
+    $("list").appendChild(box);
+    $("period").textContent = "読み込みエラー";
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    $("period").textContent = data.targetPeriod || "対象期間 未設定";
+    var n = (data.events || []).length;
+    $("metaLine").textContent = "最終更新：" + (data.updatedAt || "不明") + "　／　掲載 " + n + " 件";
+
+    renderBanners();
+    renderCriteria();
+    $("filters").hidden = false;
+    bindFilters();
+    apply();
+  }
+
+  function renderBanners() {
+    var box = $("banners");
+    box.innerHTML = "";
+
+    var days = daysSince(data.updatedAt);
+    if (days === null || days >= STALE_DAYS) {
+      var msg = days === null
+        ? "最終更新日を読み取れませんでした。情報が古い可能性があります。update.bat を実行してデータを更新してください。"
+        : "情報が古い可能性があります（最終更新から " + days + " 日経過）。update.bat を実行してデータを更新してください。";
+      var b = el("div", "banner banner-stale");
+      b.appendChild(el("span", "ico", "🕒"));
+      b.appendChild(el("span", null, msg));
+      box.appendChild(b);
+    }
+
+    if (data.isSampleData) {
+      var s = el("div", "banner banner-sample");
+      s.appendChild(el("span", "ico", "🧪"));
+      s.appendChild(el("span", null,
+        "これは動作確認用のサンプルデータです。実際の開催情報ではありません。update.bat を実行すると本物のイベント情報に置き換わります。"));
+      box.appendChild(s);
+    }
+  }
+
+  function daysSince(iso) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) { return null; }
+    var p = iso.split("-");
+    var then = new Date(+p[0], +p[1] - 1, +p[2]);
+    if (isNaN(then.getTime())) { return null; }
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor((today - then) / 86400000);
+  }
+
+  var CRITERIA_LABELS = {
+    residence: "お住まい",
+    origin: "おでかけ起点",
+    range: "移動範囲",
+    family: "対象",
+    budget: "料金",
+    venue: "会場",
+    priority: "優先したい",
+    targetDays: "対象日"
+  };
+
+  function renderCriteria() {
+    var dl = $("criteriaList");
+    dl.innerHTML = "";
+    var c = data.criteria || {};
+    var keys = Object.keys(CRITERIA_LABELS).filter(function (k) { return c[k]; });
+    Object.keys(c).forEach(function (k) { if (keys.indexOf(k) === -1) { keys.push(k); } });
+    if (!keys.length) { $("criteriaBox").hidden = true; return; }
+    keys.forEach(function (k) {
+      dl.appendChild(el("dt", null, CRITERIA_LABELS[k] || k));
+      dl.appendChild(el("dd", null, String(c[k])));
+    });
+  }
+
+  /* ---------- filters ---------- */
+  function bindFilters() {
+    var btns = $("filters").querySelectorAll(".fbtn");
+    Array.prototype.forEach.call(btns, function (btn) {
+      btn.addEventListener("click", function () {
+        var kind = btn.getAttribute("data-kind");
+        var key = btn.getAttribute("data-key");
+        if (kind === "all") {
+          state.days = [];
+          state.flags = [];
+        } else {
+          var arr = (kind === "day") ? state.days : state.flags;
+          var i = arr.indexOf(key);
+          if (i === -1) { arr.push(key); } else { arr.splice(i, 1); }
+        }
+        syncButtons(btns);
+        apply();
+      });
+    });
+    syncButtons(btns);
+  }
+
+  function syncButtons(btns) {
+    Array.prototype.forEach.call(btns, function (btn) {
+      var kind = btn.getAttribute("data-kind");
+      var key = btn.getAttribute("data-key");
+      var on;
+      if (kind === "all") { on = !state.days.length && !state.flags.length; }
+      else if (kind === "day") { on = state.days.indexOf(key) !== -1; }
+      else { on = state.flags.indexOf(key) !== -1; }
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  // 曜日どうしは OR、条件どうしは AND、両グループ間は AND
+  function match(ev) {
+    if (state.days.length) {
+      var hit = state.days.some(function (k) { return ev[k] === true; });
+      if (!hit) { return false; }
+    }
+    for (var i = 0; i < state.flags.length; i++) {
+      if (ev[state.flags[i]] !== true) { return false; }
+    }
+    return true;
+  }
+
+  function apply() {
+    var all = data.events || [];
+    var shown = all.filter(match);
+    var list = $("list");
+    list.innerHTML = "";
+
+    var count = $("count");
+    count.innerHTML = "";
+    var strong = el("b", null, String(shown.length));
+    if (shown.length === all.length) {
+      count.appendChild(document.createTextNode("全 "));
+      count.appendChild(strong);
+      count.appendChild(document.createTextNode(" 件"));
+    } else {
+      count.appendChild(strong);
+      count.appendChild(document.createTextNode(" 件 / 全 " + all.length + " 件"));
+    }
+
+    if (!shown.length) {
+      list.appendChild(el("div", "empty", all.length
+        ? "条件に合うイベントがありません。「すべて」を押すと絞り込みを解除できます。"
+        : "今週は掲載できるイベントがありませんでした。"));
+      return;
+    }
+    shown.forEach(function (ev) { list.appendChild(card(ev)); });
+  }
+
+  /* ---------- card ---------- */
+  function card(ev) {
+    var cls = "card";
+    if (ev.needsCheck) { cls += " check"; }
+    if (ev._isManual) { cls += " manual"; }
+    var c = el("article", cls);
+
+    c.appendChild(el("h2", null, ev.title || "(タイトルなし)"));
+
+    var badges = el("div", "badges");
+    function badge(cls2, text) { badges.appendChild(el("span", "badge " + cls2, text)); }
+    if (ev._isManual) { badge("b-manual", "★ おすすめ"); }
+    if (ev.area) { badge("b-area", "📍 " + ev.area); }
+    if (ev.isFree) { badge("b-free", "無料"); }
+    if (ev.isSat) { badge("b-day", "土"); }
+    if (ev.isSun) { badge("b-day", "日"); }
+    if (ev.isHoliday) { badge("b-day", "祝"); }
+    if (ev.isNear) { badge("b-near", "横浜駅30分以内"); }
+    if (ev.isIndoor) { badge("b-indoor", "屋内"); }
+    if (badges.children.length) { c.appendChild(badges); }
+
+    if (ev.needsCheck) {
+      c.appendChild(labelled("checkbox", "⚠️ 要確認",
+        ev.checkReason || "情報源によって内容が食い違っています。公式サイトで確認してください。"));
+    }
+
+    var rows = el("dl", "rows");
+    function row(label, value) {
+      if (!value) { return; }
+      rows.appendChild(el("dt", null, label));
+      rows.appendChild(el("dd", null, value));
+    }
+    row("日時", ev.datetime);
+    row("会場", ev.place);
+    row("アクセス", ev.access);
+    row("料金", ev.price);
+    if (rows.children.length) { c.appendChild(rows); }
+
+    if (ev.note) { c.appendChild(el("p", "note", ev.note)); }
+    if (ev.kidPoint) { c.appendChild(labelled("kid", "👶 3歳児メモ", ev.kidPoint)); }
+
+    if (ev.url) {
+      var go = el("div", "go");
+      var a = el("a", null, "公式ページを見る →");
+      a.href = ev.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      go.appendChild(a);
+      c.appendChild(go);
+    }
+    return c;
+  }
+})();
+</script>
+</body>
+</html>
