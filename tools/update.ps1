@@ -190,6 +190,13 @@ function Find-ClaudeBin {
 function Push-ToGitHub {
     param([string]$Root, [string]$TargetPeriod, [int]$Count)
 
+    # このスクリプト全体は $ErrorActionPreference = 'Stop' で動いている。
+    # git コマンドを 2>&1 で受けると、PowerShell 5.1 は stderr の各行
+    # （CRLF/LF変換の警告など、実際にはエラーではないもの）を NativeCommandError
+    # として扱うため、'Stop' 環境下では警告1行でこの関数全体が例外終了してしまう。
+    # ここだけ 'Continue' に戻し、警告はログに残しつつ処理を続けられるようにする。
+    $ErrorActionPreference = 'Continue'
+
     if (-not (Test-Path (Join-Path $Root '.git'))) {
         Write-Log "このフォルダはまだGitリポジトリではないため push をスキップします（README『10. iPhoneで見る／GitHub Pagesで公開する』参照）" 'Gray'
         return

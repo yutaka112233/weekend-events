@@ -1,7 +1,7 @@
 ﻿# 週末のおでかけイベント（横浜・3歳児向け）
 
 横浜駅を起点に、電車で約1時間圏内の「3歳の子どもと行ける週末イベント」を一覧表示する
-ローカルWebアプリです。毎週水曜の朝に Claude Code が自動でデータを取り直します。
+ローカルWebアプリです。毎週日曜の夜に Claude Code が自動でデータを取り直します。
 
 ---
 
@@ -191,13 +191,13 @@ winget install --id Anthropic.ClaudeCode
 
 ---
 
-## 5. 毎週水曜 朝9時の自動実行（登録済み）
+## 5. 毎週日曜 夜20時の自動実行（登録済み）
 
 **タスク名 `WeekendEvents-Update` として登録済みです。** 実行して成功することも確認済みです。
 
 | 項目 | 設定 |
 | --- | --- |
-| 実行タイミング | 毎週 **水曜 9:00** |
+| 実行タイミング | 毎週 **日曜 20:00** |
 | 実行内容 | `powershell.exe -WindowStyle Hidden -File tools\update.ps1` |
 | 画面表示 | **なし**（結果はトースト通知のみ） |
 | 取り逃したとき | 次にPCが使える状態になったら実行（`StartWhenAvailable`） |
@@ -206,7 +206,7 @@ winget install --id Anthropic.ClaudeCode
 | 上限時間 | 1時間 |
 
 > **なぜ `update.bat` ではなく `tools\update.ps1` を直接呼んでいるのか**
-> `update.bat` 経由だと、水曜の朝に黒いウィンドウが5分ほど画面に出続けます。
+> `update.bat` 経由だと、日曜の夜に黒いウィンドウが5分ほど画面に出続けます。
 > 処理内容は同じなので、中身を直接・非表示で呼ぶ形にしています。
 > **手動実行の入り口は今までどおり `update.bat`** です。
 
@@ -233,7 +233,7 @@ powershell -NoProfile -Command "Unregister-ScheduledTask -TaskName 'WeekendEvent
 ### 登録し直す場合
 
 ```bash
-powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\クロードコード\weekend-events'; $a=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$d\tools\update.ps1`\"\" -WorkingDirectory $d; $t=New-ScheduledTaskTrigger -Weekly -DaysOfWeek Wednesday -At '09:00'; $s=New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew; $p=New-ScheduledTaskPrincipal -UserId \"$env:USERDOMAIN\$env:USERNAME\" -LogonType Interactive -RunLevel Limited; Register-ScheduledTask -TaskName 'WeekendEvents-Update' -Action $a -Trigger $t -Settings $s -Principal $p -Force"
+powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\クロードコード\weekend-events'; $a=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$d\tools\update.ps1`\"\" -WorkingDirectory $d; $t=New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At '20:00'; $s=New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew; $p=New-ScheduledTaskPrincipal -UserId \"$env:USERDOMAIN\$env:USERNAME\" -LogonType Interactive -RunLevel Limited; Register-ScheduledTask -TaskName 'WeekendEvents-Update' -Action $a -Trigger $t -Settings $s -Principal $p -Force"
 ```
 
 ### 自動実行の注意点
@@ -322,7 +322,7 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
 | `.bat` をダブルクリックしても**本当に何も起きない** | `tools\` の中の `.ps1` を押していないか確認。`.ps1` は関連付けが無いため無反応です |
 | ログに `Not logged in · Please run /login` | `login.bat` を実行してサインインし直してください（本README「3. Claude Code CLI の準備」） |
 | 手動だと成功するのに、自動実行だけ「Claude Code の実行ファイルが見つかりません」 | MSIX 仮想化の問題です。`tools\update.ps1` の `Find-ClaudeBin` が `%LOCALAPPDATA%\Packages\Claude_*\...` も見るようになっているか確認してください |
-| 水曜の朝、動いたのか分からない | `logs\` の当日のログを見てください。`LastTaskResult` の確認方法は本README「5.」に記載 |
+| 日曜の夜、動いたのか分からない | `logs\` の当日のログを見てください。`LastTaskResult` の確認方法は本README「5.」に記載 |
 | `serve.bat` で「ポート 8765 を使用できませんでした」 | すでにサーバーが起動しています。既存の黒いウィンドウを閉じてから再実行 |
 | `update.bat` が「Claude Code の実行ファイルが見つかりません」 | `tools\update.ps1` 冒頭の `$ClaudeBin` に `claude.exe` のフルパスを直接書いてください |
 | ログに「権限」「permission」で止まっている | `tools\update.ps1` の `$SkipPermissions = $true` に変更してください |
@@ -363,7 +363,7 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
 iPhoneのSafariから見られるようにするには、インターネット上のどこかに
 このページを公開する必要があります。ここでは無料で使える **GitHub Pages** を使います。
 
-一度公開してしまえば、あとは今までどおり `update.bat` が毎週水曜に動くたびに、
+一度公開してしまえば、あとは今までどおり `update.bat` が毎週日曜に動くたびに、
 **自動でGitHubにも変更が送られ、数分後にはiPhoneでも最新の内容が見られます。**
 毎週手で公開し直す必要はありません。
 
@@ -463,11 +463,11 @@ GitHubへのサインインを求められます。ここでサインインす�
 
 ### 10-9. 今後の運用
 
-- 毎週水曜、`update.bat` が events.json を更新した**あとに自動で**
+- 毎週日曜、`update.bat` が events.json を更新した**あとに自動で**
   `git add` → `git commit` → `git push` まで行います。
 - 数十秒〜数分でGitHub Pages側にも反映されます。iPhone側は、
   Safariでページを再読み込み（下に引っぱる）すれば最新になります。
-- 手動で `manual-events.json` を編集した場合も、次の水曜の自動更新のタイミングで
+- 手動で `manual-events.json` を編集した場合も、次の日曜の自動更新のタイミングで
   一緒に公開されます。すぐ公開したい場合は「10-10. 今すぐ手動でpushしたいとき」へ。
 
 ### 10-10. 今すぐ手動でpushしたいとき
