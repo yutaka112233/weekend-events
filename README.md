@@ -255,7 +255,7 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
   "criteria": {
     "residence": "横浜市神奈川区",
     "origin": "横浜駅",
-    "range": "電車で約1時間圏内(川崎・大和など横浜市外もOK)",
+    "range": "電車で約1時間圏内(川崎・大和など横浜市外もOK)。ブルーライン沿線・相鉄線沿線・JR30分圏内を優先",
     "family": "3歳の子どもを含む家族3人",
     "budget": "有料でもOK(無料・低価格も歓迎)",
     "venue": "屋内・屋外どちらでもOK",
