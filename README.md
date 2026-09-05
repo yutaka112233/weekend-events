@@ -98,7 +98,7 @@ weekend-events/
 | --- | --- |
 | 検索条件パネル | 上部の「🔍 検索条件」をクリックすると開閉します |
 | 絞り込み（曜日） | 土曜 / 日曜 / 祝日 は **複数選ぶと「いずれか」** で絞り込みます |
-| 絞り込み（条件） | 無料のみ / 横浜駅30分以内 / 屋内 は **すべて満たすもの** に絞ります |
+| 絞り込み（条件） | 無料のみ / 横浜駅30分以内 / 横浜駅1時間以内 / 屋内 は **すべて満たすもの** に絞ります |
 | すべて | 絞り込みを全部解除します |
 | ⚠️ 要確認カード | 情報が食い違っているイベントは、赤枠＋理由付きで表示されます |
 | 情報が古い警告 | 最終更新から10日以上経つと、黄色の帯で警告します |
@@ -275,6 +275,7 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
       "isSun": false,
       "isHoliday": false,
       "isNear": true,
+      "isWithinHour": true,
       "isIndoor": false,
       "note": "イベント内容の説明",
       "kidPoint": "3歳児向けの補足(混雑・時間帯・予約要否など)",
@@ -525,6 +526,7 @@ Instagramなどで見つけた「これは良さそう」というスポット�
       "isSun": true,
       "isHoliday": false,
       "isNear": true,
+      "isWithinHour": true,
       "isIndoor": true,
       "note": "Instagramの投稿で見つけた読み聞かせイベント。定員10組。",
       "kidPoint": "事前にDMでの予約が必要とのこと。",
@@ -554,9 +556,10 @@ Instagramなどで見つけた「これは良さそう」というスポット�
   manual-events.js の更新をスキップしました」とログに出ます。
   自動更新自体（events.json側）は止まらず、あなたのファイルも書き換えられません。
   ログを見て、余分なカンマなどを直してください。
-- `isFree` / `isSat` / `isSun` / `isHoliday` / `isNear` / `isIndoor` を
+- `isFree` / `isSat` / `isSun` / `isHoliday` / `isNear` / `isWithinHour` / `isIndoor` を
   正しく `true`/`false` で入れないと、絞り込みボタンで正しく表示されません
-  （空欄や未入力は `false` 扱いになります）。
+  （空欄や未入力は `false` 扱いになります）。`isNear`（30分以内）を `true` にする場合は
+  `isWithinHour`（1時間以内）も `true` にしてください（30分以内は1時間以内にも含まれるため）。
 - 編集後、`index.html` をダブルクリックで開いている場合は
   すぐには反映されません（`manual-events.js` が古いまま）。
   `update.bat` を実行するか、`serve.bat` 経由で開いてください。

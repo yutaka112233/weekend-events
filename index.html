@@ -147,6 +147,7 @@
   .b-free{background:var(--pink-soft);color:#C22E67;}
   .b-day{background:var(--teal-soft);color:#0E6E6E;}
   .b-near{background:var(--accent-soft);color:var(--accent-deep);}
+  .b-hour{background:#EAF3FF;color:#2B6FB3;}
   .b-indoor{background:#EDEAFB;color:#5B4BB5;}
   .b-area{background:#F1EDE6;color:var(--ink-soft);}
   .b-manual{background:#FFF3C4;color:#8A6400;}
@@ -230,6 +231,7 @@
       <span class="glabel">条件</span>
       <button class="fbtn" data-kind="flag" data-key="isFree" aria-pressed="false">無料のみ</button>
       <button class="fbtn" data-kind="flag" data-key="isNear" aria-pressed="false">横浜駅30分以内</button>
+      <button class="fbtn" data-kind="flag" data-key="isWithinHour" aria-pressed="false">横浜駅1時間以内</button>
       <button class="fbtn" data-kind="flag" data-key="isIndoor" aria-pressed="false">屋内</button>
     </div>
   </div>
@@ -490,6 +492,7 @@
     if (ev.isSun) { badge("b-day", "日"); }
     if (ev.isHoliday) { badge("b-day", "祝"); }
     if (ev.isNear) { badge("b-near", "横浜駅30分以内"); }
+    else if (ev.isWithinHour) { badge("b-hour", "横浜駅1時間以内"); }
     if (ev.isIndoor) { badge("b-indoor", "屋内"); }
     if (badges.children.length) { c.appendChild(badges); }
 
