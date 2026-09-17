@@ -224,6 +224,11 @@ powershell -NoProfile -Command "Get-ScheduledTask -TaskName 'WeekendEvents-Updat
 powershell -NoProfile -Command "Start-ScheduledTask -TaskName 'WeekendEvents-Update'"
 ```
 
+> `tools\update.ps1` は既定で「今週分（直近の日曜以降）が既に更新済みならスキップする」
+> 鮮度チェックを行うため（後述）、既に今週分が更新済みだとこのコマンドは
+> 何もせず終わります。**必ず今すぐ本物の更新をしたい場合は `update.bat` を実行してください**
+> （`update.bat` は常に `-Force` を付けて呼ぶため、鮮度チェックに関係なく必ず更新します）。
+
 ### 自動実行をやめる（削除）
 
 ```bash
@@ -238,9 +243,46 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
 
 ### 自動実行の注意点
 
-- **PCの電源が切れていると実行されません。** ［設定］タブの「開始できなかった場合〜」に
-  チェックを入れておけば、次にPCを立ち上げたタイミングで実行されます。
+- **PCの電源が切れていると実行されません。** `StartWhenAvailable` を設定しているため、
+  次にPCが使える状態になったタイミングで自動的に取り戻そうとします。
+  ただし **PCがオフの間はサイトの内容は古いまま**です。次にPCを起動してから
+  数分〜十数分ほど経つと、バックグラウンドで自動的に更新されます
+  （2026-09-17に実際に約5日間PCがオフだった際、起動の約5分後に自動で取り戻すことを確認済み）。
 - 実行中はバックグラウンドで数分かかります。終わるとトースト通知が出ます。
+
+### 鮮度チェックと `-Force`（2026-09-17の不具合を受けて追加）
+
+`tools\update.ps1` は既定で、実行するたびに「直近の日曜以降のデータに
+既に更新済みか」を確認し、**既に済んでいれば何もせず終了**します
+（`updatedAt` を見て判定。手を加える前に一瞬で終わるので、無駄な実行にはなりません）。
+`-Force` を付けると、この判定を無視して必ず更新します。`update.bat` は常に
+`-Force` 付きで呼ぶため、手動実行はこれまでどおり毎回確実に更新されます。
+
+この仕組みを入れた理由: 2026-09-12 23:54〜2026-09-17 21:54の約5日間PCの電源が
+入っておらず、9/13(日)20:00の自動実行が丸ごと取りこぼされていました。
+PCが起動した際に `StartWhenAvailable` が取りこぼし分を自動実行しようとしたのと、
+ちょうど同時に手動で実行した更新が重なり、**2つの更新処理が同時に events.json と
+GitHubを触りかける**事態が発生しました（実害が出る前に検知して片方を停止）。
+再発防止として、次の2つを追加しています。
+
+- **ロックファイル**（`.update.lock`）: 実行開始時に作成し、終了時に削除します。
+  既にロックファイルがある状態で起動すると、多重実行を避けるためその回は
+  何もせず終了します（前回の実行が異常終了して消し忘れた場合に備え、
+  作成から `$TimeoutMinutes + 10` 分以上経っていれば古いロックとみなして削除し、
+  通常どおり処理を続けます）。
+- **鮮度チェック**（上記の `-Force`）。
+
+### （任意・管理者権限が必要）ログオン時にも取りこぼしを確認する
+
+より積極的に取りこぼしを検知したい場合、ログオンの少し後にも鮮度チェック
+（`-Force` なし）を行うトリガーを追加できます。**この操作には管理者権限が必要です**
+（このREADMEの他のコマンドと違い、"管理者として実行"したPowerShellで行ってください）。
+鮮度チェックのおかげで、既に今週分が更新済みならほとんど瞬時に終わるため、
+毎回のログオンで負荷になることはありません。
+
+```bash
+powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\クロードコード\weekend-events'; $a=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `\"$d\tools\update.ps1`\"\" -WorkingDirectory $d; $t1=New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At '20:00'; $t2=New-ScheduledTaskTrigger -AtLogOn; $t2.Delay='PT10M'; $s=New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew; $p=New-ScheduledTaskPrincipal -UserId \"$env:USERDOMAIN\$env:USERNAME\" -LogonType Interactive -RunLevel Limited; Register-ScheduledTask -TaskName 'WeekendEvents-Update' -Action $a -Trigger @($t1,$t2) -Settings $s -Principal $p -Force"
+```
 - 通知が出ない場合は、`設定 > システム > 通知` で通知がオンになっているか確認してください。
 
 ---
@@ -324,6 +366,9 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
 | ログに `Not logged in · Please run /login` | `login.bat` を実行してサインインし直してください（本README「3. Claude Code CLI の準備」） |
 | 手動だと成功するのに、自動実行だけ「Claude Code の実行ファイルが見つかりません」 | MSIX 仮想化の問題です。`tools\update.ps1` の `Find-ClaudeBin` が `%LOCALAPPDATA%\Packages\Claude_*\...` も見るようになっているか確認してください |
 | 日曜の夜、動いたのか分からない | `logs\` の当日のログを見てください。`LastTaskResult` の確認方法は本README「5.」に記載 |
+| 日曜に更新されていなかった | よくある原因はその時刻にPCの電源が入っていなかったことです。次にPCを起動してから数分〜十数分待つと自動で取り戻します。今すぐ反映したい場合は `update.bat` を実行してください |
+| ログに「別の更新処理が既に実行中のようです」と出て何も起きない | 前回の実行が正常に終わっていれば自然に解消します（`.update.lock` が古ければ自動で無視されます）。急ぐ場合は `weekend-events\.update.lock` を手動で削除してから再実行してください |
+| Claude Codeが「session limit」で失敗する | Claude Code CLI 自体の利用上限です。ログに表示されるリセット時刻を過ぎてから `update.bat` を再実行してください。events.json は自動でバックアップから復元されるため壊れません |
 | `serve.bat` で「ポート 8765 を使用できませんでした」 | すでにサーバーが起動しています。既存の黒いウィンドウを閉じてから再実行 |
 | `update.bat` が「Claude Code の実行ファイルが見つかりません」 | `tools\update.ps1` 冒頭の `$ClaudeBin` に `claude.exe` のフルパスを直接書いてください |
 | ログに「権限」「permission」で止まっている | `tools\update.ps1` の `$SkipPermissions = $true` に変更してください |

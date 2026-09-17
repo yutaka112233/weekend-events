@@ -4,6 +4,9 @@ logs/
 # 直前のバックアップ（events.json.bak）。中身は events.json と同じ情報なので不要
 *.bak
 
+# 多重実行防止用のロックファイル（実行中だけ存在する一時ファイル）
+.update.lock
+
 # Windows のゴミファイル
 Thumbs.db
 desktop.ini

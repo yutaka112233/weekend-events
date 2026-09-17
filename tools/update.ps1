@@ -1,7 +1,28 @@
 ﻿# ============================================================
 #  update.ps1 - events.json を週次で自動更新する
 #  ※ 直接これを実行してもよいですが、通常は update.bat から呼ばれます。
+#
+#  既定の動作（鮮度チェック）と -Force スイッチについて:
+#  「日曜20時にPCの電源が入っていなかった」場合、Windowsのタスクスケジューラの
+#  StartWhenAvailable（取りこぼし時に次の起動時に実行）が機能しないことがある
+#  （実際に2026-09-13の実行が、2026-09-12 23:54〜2026-09-17 21:54までPCの電源が
+#    入っていなかったために取りこぼされ、そのまま自動では復旧しなかった）。
+#
+#  対策として、タスクスケジューラに「ログオン時」トリガーを追加すると、
+#  ログオンのたびにも本スクリプトが起動され取りこぼしを自動回収できる
+#  （ただしログオン時トリガーの追加には管理者権限が必要で、標準ユーザー権限の
+#  このプロジェクトのセットアップでは追加できなかった。README『5.』に、
+#  管理者権限がある場合の追加手順を任意項目として書いてある）。
+#  毎回フルの更新をすると無駄（Claude Codeの実行時間・使用量）になるため、
+#  ログオン時トリガーを追加する場合に備えて、既定では
+#  「今週分（直近の日曜以降）が既に更新済みなら何もせず終了する」判定を行う。
+#  日曜20時の本来のトリガーで実行されたときも、前回（先週分）は当然この基準より
+#  古いのでそのまま普通に更新される＝挙動は変わらない。
+#
+#  -Force を付けると、この鮮度チェックを無視して必ず更新する
+#  （update.bat からの手動実行は常にこちらを使う）。
 # ============================================================
+param([switch]$Force)
 
 # ---------------- 設定 ----------------
 
@@ -31,6 +52,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 Set-Location $root
 
+$lockPath   = Join-Path $root '.update.lock'
 $jsonPath   = Join-Path $root 'events.json'
 $jsPath     = Join-Path $root 'events.js'
 $manualJsonPath = Join-Path $root 'manual-events.json'
@@ -146,6 +168,13 @@ function Sync-ManualEventsMirror {
     }
 }
 
+# 直近の日曜日（今日が日曜ならその日自体）の日付を返す。鮮度チェックの判定に使う。
+function Get-MostRecentSunday {
+    param([datetime]$From = (Get-Date))
+    # DayOfWeek は Sunday=0, Monday=1, ... Saturday=6
+    return $From.Date.AddDays(-[int]$From.DayOfWeek)
+}
+
 function Find-ClaudeBin {
     if ($ClaudeBin -and (Test-Path $ClaudeBin)) { return $ClaudeBin }
     if ($env:CLAUDE_BIN -and (Test-Path $env:CLAUDE_BIN)) { return $env:CLAUDE_BIN }
@@ -246,8 +275,54 @@ function Push-ToGitHub {
 Add-Content -Path $logPath -Value "" -Encoding UTF8
 Write-Log "==================== 週次更新 開始 ====================" 'Cyan'
 Write-Log "作業フォルダ: $root"
+if ($Force) { Write-Log "モード: 強制実行（-Force、鮮度チェックなし）" 'Cyan' }
 
 $exitCode = 0
+
+# --- 0. 鮮度チェック（既定で毎回行う。-Force のときはスキップ。ロック取得より前に行う。
+#         ここで終了する場合は何も書き換えないので、ロックを取る必要が無い） ---
+if (-not $Force) {
+    try {
+        if (Test-Path $jsonPath) {
+            $existing = Get-Content -Raw -Encoding UTF8 $jsonPath | ConvertFrom-Json
+            if ($existing.updatedAt -match '^\d{4}-\d{2}-\d{2}$') {
+                $updatedDate = [datetime]::ParseExact($existing.updatedAt, 'yyyy-MM-dd', $null)
+                $mostRecentSunday = Get-MostRecentSunday
+                if ($updatedDate -ge $mostRecentSunday) {
+                    Write-Log ("今週分は既に更新済みです（updatedAt={0} / 直近の日曜={1:yyyy-MM-dd}）。何もせず終了します。" -f $existing.updatedAt, $mostRecentSunday) 'Gray'
+                    exit 0
+                } else {
+                    Write-Log ("前回の更新（{0}）が直近の日曜（{1:yyyy-MM-dd}）より古いため、日曜の実行を取りこぼした可能性があります。通常の更新処理を行います。" -f $existing.updatedAt, $mostRecentSunday) 'Yellow'
+                }
+            }
+        }
+    } catch {
+        Write-Log "鮮度チェックでエラーが発生したため、念のため通常どおり更新処理を続行します: $($_.Exception.Message)" 'Yellow'
+    }
+}
+
+# --- 排他制御 ---
+# 2026-09-17に、通常の日曜トリガーが取りこぼされたまま自動復旧（StartWhenAvailable）が
+# PC起動の約5分後に発火し、その直後に手動実行とちょうど重なって2つの更新処理が
+# 同時に events.json / git を触りかけたことがあった。以後これを防ぐため、
+# 実際に処理を始める直前でロックファイルを取り、多重実行を防止する。
+$lockAcquired = $false
+if (Test-Path $lockPath) {
+    $lockAgeMinutes = ((Get-Date) - (Get-Item $lockPath).LastWriteTime).TotalMinutes
+    if ($lockAgeMinutes -gt ($TimeoutMinutes + 10)) {
+        Write-Log "古いロックファイルを検出したため削除します（前回の実行が異常終了した可能性、経過 $([int]$lockAgeMinutes) 分）" 'Yellow'
+        Remove-Item $lockPath -Force -ErrorAction SilentlyContinue
+    } else {
+        Write-Log "別の更新処理が既に実行中のようです（ロックファイル: $lockPath、経過 $([int]$lockAgeMinutes) 分）。今回は何もせず終了します。" 'Yellow'
+        exit 0
+    }
+}
+try {
+    "$PID / $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Set-Content -Path $lockPath -Encoding UTF8
+    $lockAcquired = $true
+} catch {
+    Write-Log "ロックファイルの作成に失敗しましたが、処理は続行します: $($_.Exception.Message)" 'Yellow'
+}
 
 try {
     # --- 0. 前提チェック ---
@@ -386,5 +461,10 @@ try {
         Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$LogRetentionDays) } |
         Remove-Item -Force -ErrorAction SilentlyContinue
 } catch { }
+
+# --- ロック解放 ---
+if ($lockAcquired) {
+    Remove-Item -Path $lockPath -Force -ErrorAction SilentlyContinue
+}
 
 exit $exitCode

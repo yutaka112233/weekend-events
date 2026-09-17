@@ -17,7 +17,8 @@ rem ============================================================
 
 cd /d "%~dp0"
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\update.ps1"
+rem -Force: this is a manual run, always update (skip the freshness check)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\update.ps1" -Force
 set "RC=%ERRORLEVEL%"
 
 if "%RC%"=="0" (
