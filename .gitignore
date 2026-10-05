@@ -7,6 +7,12 @@ logs/
 # 多重実行防止用のロックファイル（実行中だけ存在する一時ファイル）
 .update.lock
 
+# 長期トークンを設定した日付（期限の事前通知用。このPC固有の情報）
+.token-issued
+
+# setup-token.bat がどこまで進んだかの記録（トークン自体は含まない）
+.setup-token-status
+
 # Windows のゴミファイル
 Thumbs.db
 desktop.ini

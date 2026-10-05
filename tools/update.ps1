@@ -168,6 +168,20 @@ function Sync-ManualEventsMirror {
     }
 }
 
+# `claude auth status` の結果（loggedIn / authMethod）を返す。読めなければ $null。
+# 2026-10-04 の自動更新がログイン切れ（OAuth session expired）で失敗したため、
+# 実行前に確認して、切れていれば分かりやすいメッセージで止める。
+function Get-ClaudeAuth {
+    param([string]$Claude)
+    $ErrorActionPreference = 'Continue'
+    try {
+        $raw = (& $Claude auth status 2>&1 | Out-String)
+        return ($raw | ConvertFrom-Json)
+    } catch {
+        return $null
+    }
+}
+
 # 直近の日曜日（今日が日曜ならその日自体）の日付を返す。鮮度チェックの判定に使う。
 function Get-MostRecentSunday {
     param([datetime]$From = (Get-Date))
@@ -198,7 +212,8 @@ function Find-ClaudeBin {
 
     foreach ($base in $bases) {
         if (-not (Test-Path $base)) { continue }
-        $found = Get-ChildItem -Path $base -Filter 'claude.exe' -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+        # 2.1.286 以降は <版>\<ハッシュ>\claude.exe と1階層深くなったため Depth 3
+        $found = Get-ChildItem -Path $base -Filter 'claude.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue |
                  Sort-Object LastWriteTime -Descending |
                  Select-Object -First 1
         if ($found) { return $found.FullName }
@@ -334,6 +349,33 @@ try {
     }
     Write-Log "Claude Code: $claude"
 
+    # --- ログイン状態の確認 ---
+    $hasEnvToken = -not [string]::IsNullOrWhiteSpace($env:CLAUDE_CODE_OAUTH_TOKEN)
+    $auth = Get-ClaudeAuth -Claude $claude
+    if ($auth) {
+        Write-Log ("認証: loggedIn={0} / authMethod={1} / 長期トークン(環境変数)={2}" -f $auth.loggedIn, $auth.authMethod, $(if ($hasEnvToken) { 'あり' } else { 'なし' }))
+    } else {
+        Write-Log "認証状態を読み取れませんでした（このまま続行します）" 'Yellow'
+    }
+    # 長期トークンが登録されていない状態でログアウトしていれば、実行しても必ず失敗するので先に止める
+    if ($auth -and ($auth.loggedIn -eq $false) -and -not $hasEnvToken) {
+        throw "Claude Code のログインが切れています。weekend-events フォルダの setup-token.bat を実行してください（約1年有効なトークンを設定します）"
+    }
+
+    # --- 長期トークンの期限（約1年）が近づいていないか ---
+    $tokenWarning = $null
+    $issuedPath = Join-Path $root '.token-issued'
+    if ($hasEnvToken -and (Test-Path $issuedPath)) {
+        try {
+            $issued = [datetime]::ParseExact((Get-Content $issuedPath -Raw).Trim(), 'yyyy-MM-dd', $null)
+            $ageDays = ((Get-Date) - $issued).Days
+            if ($ageDays -ge 330) {
+                $tokenWarning = "長期トークンの設定から $ageDays 日経過しました（期限は約1年）。近いうちに setup-token.bat を実行し直してください。"
+                Write-Log $tokenWarning 'Yellow'
+            }
+        } catch { }
+    }
+
     # --- 1. バックアップ ---
     if (Test-Path $jsonPath) {
         Copy-Item -Path $jsonPath -Destination $backupPath -Force
@@ -382,16 +424,27 @@ try {
     Write-Log "Claude Code 終了コード: $claudeExit"
 
     # --- 3. 実行結果をログに保存 ---
+    $claudeOutput = ''
     foreach ($pair in @(@('標準出力', $outFile), @('標準エラー出力', $errFile))) {
         $label = $pair[0]; $file = $pair[1]
         if ((Test-Path $file) -and (Get-Item $file).Length -gt 0) {
+            $text = Get-Content -Raw -Encoding UTF8 $file
+            $claudeOutput += $text
             Add-Content -Path $logPath -Value "`n---------- $label ----------" -Encoding UTF8
-            Get-Content -Raw -Encoding UTF8 $file | Add-Content -Path $logPath -Encoding UTF8
+            $text | Add-Content -Path $logPath -Encoding UTF8
         }
         Remove-Item $file -Force -ErrorAction SilentlyContinue
     }
 
-    if ($claudeExit -ne 0) { throw "Claude Code が異常終了しました（終了コード $claudeExit）" }
+    if ($claudeExit -ne 0) {
+        if ($claudeOutput -match 'authenticate|OAuth|Not logged in|/login|token') {
+            throw "Claude Code のログイン（またはトークン）が切れています。weekend-events フォルダの setup-token.bat を実行してください"
+        }
+        if ($claudeOutput -match 'session limit|usage limit|rate limit') {
+            throw "Claude Code の利用上限に達しました。上限のリセット後に update.bat を実行してください"
+        }
+        throw "Claude Code が異常終了しました（終了コード $claudeExit）"
+    }
 
     # --- 4. 検証 ---
     $problem = Get-JsonProblem -Path $jsonPath
@@ -424,6 +477,9 @@ try {
     Write-Log "==================== 週次更新 成功 ====================" 'Green'
     Show-Toast -Title '週末おでかけイベント' `
                -Message "更新しました: $count 件`n対象期間: $($j.targetPeriod)$(if ($needs -gt 0) { "`n要確認: $needs 件" })"
+    if ($tokenWarning) {
+        Show-Toast -Title '週末おでかけイベント（トークン期限が近い）' -Message $tokenWarning -Level 'Error'
+    }
 
 } catch {
     $msg = $_.Exception.Message

@@ -26,7 +26,8 @@ PowerShell だけで動くものを同梱しています（`serve.bat`）。追�
 weekend-events/
 ├── index.html          表示用ページ ★普段はこれをダブルクリック（PC）／公開URL（iPhone）
 ├── update.bat          週次更新の入り口 ★データを取り直すときに使う（GitHubへのpushも含む）
-├── login.bat           Claude Code のログイン用（最初に1回だけ）
+├── setup-token.bat     自動更新用の長期トークン（約1年有効）の設定 ★おすすめ
+├── login.bat           Claude Code の通常ログイン用（数週間〜数か月で切れることがある）
 ├── serve.bat           予備の表示方法（ローカルサーバー経由で開く）
 ├── events.json         イベントデータ（自動更新される本体）
 ├── events.js           events.json と同じ内容。ダブルクリック表示用に自動生成
@@ -38,7 +39,8 @@ weekend-events/
 ├── .gitignore          Gitに含めないものの一覧（logs/ と *.bak）
 ├── tools/
 │   ├── update.ps1      更新処理の本体（バックアップ・実行・検証・復元・通知・GitHub push）
-│   └── serve.ps1       簡易ローカルサーバーの本体
+│   ├── serve.ps1       簡易ローカルサーバーの本体
+│   └── setup-token.ps1 長期トークン設定の本体
 ├── logs/               実行ログ（logs/YYYY-MM-DD.log・Git管理外）
 └── README.md           このファイル
 ```
@@ -116,20 +118,34 @@ weekend-events/
 Not logged in · Please run /login
 ```
 
-### ログインのしかた
+### おすすめ：長期トークン（約1年有効）を設定する — `setup-token.bat`
 
-**`login.bat` をダブルクリック** して、開いた黒い窓で次の3手順です。
+**`setup-token.bat` をダブルクリック** して、窓の案内どおりに進めてください。
 
-1. `/login` と入力して Enter
-2. ブラウザが開くのでサインインする
-3. 窓に戻って `/exit` と入力して閉じる
+1. ブラウザが開くのでサインインする
+2. 窓に `sk-ant-` で始まる長い文字列（トークン）が表示されるので、選択してコピー
+3. 聞かれたら貼り付けて Enter（画面には表示されませんが入力されています）
 
-これで `%USERPROFILE%\.claude\.credentials.json` に認証情報が保存され、
-以後 `update.bat` もタスクスケジューラも動くようになります。
+トークンはWindowsのユーザー環境変数 `CLAUDE_CODE_OAUTH_TOKEN` に保存され、
+手動実行でもタスクスケジューラからの自動実行でも使われます。
 
-> ログイン状態は永久ではありません。数か月後に失効することがあります。
-> そのときは `update.bat` が失敗し、ログに同じ `Not logged in` が出るので、
-> `login.bat` をもう一度実行してください（失敗時は通知が出て、データは元のまま守られます）。
+> **これを設定する理由**: 通常のログイン（下の `login.bat`）は数週間〜数か月で
+> 切れることがあり、2026-10-04の日曜の自動更新が
+> `OAuth session expired and could not be refreshed` で失敗しました。
+> 長期トークンなら約1年もちます。期限の約1か月前（設定から330日以降）になると、
+> 自動更新のたびに「トークン期限が近い」という通知が出ます。そのときは
+> `setup-token.bat` をもう一度実行してください。
+
+### ログインのしかた（通常のログイン）— `login.bat`
+
+**`login.bat` をダブルクリック** すると、ブラウザでのサインイン画面が開きます。
+サインインすれば完了です（黒い窓には何も入力不要）。
+
+これで `%USERPROFILE%\.claude\.credentials.json` に認証情報が保存されますが、
+**数週間〜数か月で切れることがあります**。自動実行用には上の `setup-token.bat` を推奨します。
+
+> ログインが切れている状態で更新が走ると、Claude Code を起動する前に検知して止まり、
+> 「setup-token.bat を実行してください」という通知が出ます（データは元のまま守られます）。
 
 ### claude.exe の探索順
 
@@ -363,7 +379,8 @@ powershell -NoProfile -Command "$d='C:\Users\mppwy\OneDrive\ドキュメント\�
 | `serve.bat` の黒い窓は出るがブラウザが開かない | 黒い窓に出ている `http://localhost:8765/` を、ブラウザのアドレス欄に手で入力してください |
 | `serve.bat` の窓が一瞬で消える | `update.bat` を1回実行してログを確認するか、`index.html` のダブルクリックで開いてください |
 | `.bat` をダブルクリックしても**本当に何も起きない** | `tools\` の中の `.ps1` を押していないか確認。`.ps1` は関連付けが無いため無反応です |
-| ログに `Not logged in · Please run /login` | `login.bat` を実行してサインインし直してください（本README「3. Claude Code CLI の準備」） |
+| ログに `Not logged in · Please run /login` / `OAuth session expired` / 「ログインが切れています」 | `setup-token.bat` を実行してください（本README「3. Claude Code CLI の準備」） |
+| 「トークン期限が近い」という通知が出た | 長期トークンの期限（約1年）が近いお知らせです。`setup-token.bat` をもう一度実行してください |
 | 手動だと成功するのに、自動実行だけ「Claude Code の実行ファイルが見つかりません」 | MSIX 仮想化の問題です。`tools\update.ps1` の `Find-ClaudeBin` が `%LOCALAPPDATA%\Packages\Claude_*\...` も見るようになっているか確認してください |
 | 日曜の夜、動いたのか分からない | `logs\` の当日のログを見てください。`LastTaskResult` の確認方法は本README「5.」に記載 |
 | 日曜に更新されていなかった | よくある原因はその時刻にPCの電源が入っていなかったことです。次にPCを起動してから数分〜十数分待つと自動で取り戻します。今すぐ反映したい場合は `update.bat` を実行してください |
