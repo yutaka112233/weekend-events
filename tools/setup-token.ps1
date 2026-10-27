@@ -31,12 +31,26 @@ function Find-Claude {
         Get-ChildItem -Path $pkgRoot -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue |
             ForEach-Object { $bases += (Join-Path $_.FullName 'LocalCache\Roaming\Claude\claude-code') }
     }
+    $dataRoot = Join-Path $env:LOCALAPPDATA 'Claude-Data'
+    if (Test-Path $dataRoot) {
+        Get-ChildItem -Path $dataRoot -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { $bases += (Join-Path $_.FullName 'claude-code') }
+    }
+    $candidates = @()
     foreach ($b in $bases) {
         if (-not (Test-Path $b)) { continue }
-        $f = Get-ChildItem -Path $b -Filter 'claude.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-             Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($f) { return $f.FullName }
+        $candidates += Get-ChildItem -Path $b -Filter 'claude.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue
     }
+    if (-not $candidates) {
+        # 予備: AppData 全体から claude-code フォルダの中の claude.exe を探す
+        foreach ($r in @($env:LOCALAPPDATA, $env:APPDATA)) {
+            if (-not (Test-Path $r)) { continue }
+            $candidates += Get-ChildItem -Path $r -Filter 'claude.exe' -Recurse -Depth 7 -ErrorAction SilentlyContinue |
+                           Where-Object { $_.FullName -like '*\claude-code\*' }
+        }
+    }
+    $f = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($f) { return $f.FullName }
     return $null
 }
 

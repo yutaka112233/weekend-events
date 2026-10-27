@@ -157,6 +157,13 @@ Not logged in · Please run /login
 3. PATH 上の `claude`
 4. `%APPDATA%\Claude\claude-code\` 配下で最も新しい `claude.exe`
 5. `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code\` 配下で最も新しい `claude.exe`
+6. `%LOCALAPPDATA%\Claude-Data\*\claude-code\` 配下で最も新しい `claude.exe`（2026-10-23頃のアプリ更新で移動）
+7. 上のどこにも無ければ、`%LOCALAPPDATA%` と `%APPDATA%` 全体から「`claude-code` フォルダの中の `claude.exe`」を探す
+
+> **2026-10-25 の失敗について**: デスクトップアプリの更新で `claude.exe` の置き場所が
+> 6 の場所に変わっていたため、日曜の自動更新が「実行ファイルが見つかりません」で失敗しました。
+> 置き場所が変わったのは3回目だったので、7 の「AppData全体から探す」予備の探索を加え、
+> 次にまた移動しても自動で見つけられるようにしています。
 
 > **なぜ 4 と 5 の両方を見るのか（重要な落とし穴）**
 > Claude デスクトップアプリは **MSIX（パッケージ化アプリ）** です。そのため
@@ -169,9 +176,10 @@ Not logged in · Please run /login
 > なお認証情報の `%USERPROFILE%\.claude\.credentials.json` は仮想化されておらず、
 > コンテナ外からも読めるため問題ありません。
 
-4 と 5 のパスはデスクトップアプリの更新でバージョン番号が変わりますが、
+4〜6 のパスはデスクトップアプリの更新でバージョン番号が変わりますが、
 一番新しいものを自動で選ぶので手当ては不要です。
-より安定させたい場合は、Claude Code CLI を単体で入れてください（任意）。
+デスクトップアプリの置き場所の変更に左右されないようにしたい場合は、
+Claude Code CLI を単体で入れてください（任意）。
 
 ```bash
 winget install --id Anthropic.ClaudeCode

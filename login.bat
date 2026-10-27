@@ -19,10 +19,17 @@ for /f "delims=" %%i in ('where claude 2^>nul') do (
   if not defined CLAUDE_EXE set "CLAUDE_EXE=%%i"
 )
 
-rem 2) claude.exe bundled with the Claude desktop app (newest folder wins)
+rem 2) claude.exe bundled with the Claude desktop app.
+rem    Its location has changed several times, so search all of
+rem    LocalAppData and AppData for a claude.exe inside a "claude-code" folder.
 if not defined CLAUDE_EXE (
-  for /f "delims=" %%i in ('dir /b /s /o-d "%APPDATA%\Claude\claude-code\claude.exe" 2^>nul') do (
-    if not defined CLAUDE_EXE set "CLAUDE_EXE=%%i"
+  for /f "delims=" %%i in ('dir /b /s "%LOCALAPPDATA%\claude.exe" 2^>nul ^| findstr /i "\\claude-code\\"') do (
+    set "CLAUDE_EXE=%%i"
+  )
+)
+if not defined CLAUDE_EXE (
+  for /f "delims=" %%i in ('dir /b /s "%APPDATA%\claude.exe" 2^>nul ^| findstr /i "\\claude-code\\"') do (
+    set "CLAUDE_EXE=%%i"
   )
 )
 

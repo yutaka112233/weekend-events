@@ -197,11 +197,14 @@ function Find-ClaudeBin {
     if ($cmd) { return $cmd.Source }
 
     # Claude デスクトップアプリに同梱されている claude.exe を探す。
-    #
-    # 注意: デスクトップアプリは MSIX（パッケージ化アプリ）のため、%APPDATA%\Claude は
-    # アプリの中からしか見えない仮想パスになっている。タスクスケジューラはコンテナの外で
-    # 動くので、そこからは実体パス（LocalCache 配下）を見に行く必要がある。
-    # 両方を候補にすることで、手動実行でも自動実行でも見つかるようにしている。
+    # アプリの更新で置き場所が何度も変わっている：
+    #   - %APPDATA%\Claude\claude-code\<版>\claude.exe（MSIXの仮想パス。アプリ内からのみ見える）
+    #   - %LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code\...（上の実体）
+    #   - 2.1.286〜: <版>\<ハッシュ>\claude.exe と1階層深くなった
+    #   - 2026-10-23頃〜: %LOCALAPPDATA%\Claude-Data\claude_*\claude-code\<版>\<ハッシュ>\claude.exe
+    #     （これに気づかず 2026-10-25 の自動更新が「見つからない」で失敗した）
+    # 既知の場所を先に見て、どこにも無ければ AppData 全体から「claude-code フォルダの中の
+    # claude.exe」を探す。こうしておけば次に場所が変わっても自動で見つけられる。
     $bases = @()
     $bases += (Join-Path $env:APPDATA 'Claude\claude-code')
     $pkgRoot = Join-Path $env:LOCALAPPDATA 'Packages'
@@ -209,17 +212,35 @@ function Find-ClaudeBin {
         Get-ChildItem -Path $pkgRoot -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue |
             ForEach-Object { $bases += (Join-Path $_.FullName 'LocalCache\Roaming\Claude\claude-code') }
     }
-
-    foreach ($base in $bases) {
-        if (-not (Test-Path $base)) { continue }
-        # 2.1.286 以降は <版>\<ハッシュ>\claude.exe と1階層深くなったため Depth 3
-        $found = Get-ChildItem -Path $base -Filter 'claude.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-                 Sort-Object LastWriteTime -Descending |
-                 Select-Object -First 1
-        if ($found) { return $found.FullName }
+    $dataRoot = Join-Path $env:LOCALAPPDATA 'Claude-Data'
+    if (Test-Path $dataRoot) {
+        Get-ChildItem -Path $dataRoot -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { $bases += (Join-Path $_.FullName 'claude-code') }
     }
 
-    Write-Log "探索したパス: $($bases -join ' / ')" 'Yellow'
+    $candidates = @()
+    foreach ($base in $bases) {
+        if (-not (Test-Path $base)) { continue }
+        $candidates += Get-ChildItem -Path $base -Filter 'claude.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue
+    }
+
+    if (-not $candidates) {
+        # 予備: AppData 全体から探す（デスクトップアプリ本体の Claude.exe を拾わないよう
+        # パスに \claude-code\ を含むものだけに絞る）
+        foreach ($r in @($env:LOCALAPPDATA, $env:APPDATA)) {
+            if (-not (Test-Path $r)) { continue }
+            $candidates += Get-ChildItem -Path $r -Filter 'claude.exe' -Recurse -Depth 7 -ErrorAction SilentlyContinue |
+                           Where-Object { $_.FullName -like '*\claude-code\*' }
+        }
+        if ($candidates) {
+            Write-Log "既知の場所に無かったため AppData 全体から見つけました（置き場所が変わった可能性）" 'Yellow'
+        }
+    }
+
+    $found = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($found) { return $found.FullName }
+
+    Write-Log "探索したパス: $($bases -join ' / ') / AppData 全体" 'Yellow'
     return $null
 }
 
@@ -339,6 +360,7 @@ try {
     Write-Log "ロックファイルの作成に失敗しましたが、処理は続行します: $($_.Exception.Message)" 'Yellow'
 }
 
+$backupMade = $false
 try {
     # --- 0. 前提チェック ---
     if (-not (Test-Path $promptPath)) { throw "prompt.md が見つかりません: $promptPath" }
@@ -379,6 +401,7 @@ try {
     # --- 1. バックアップ ---
     if (Test-Path $jsonPath) {
         Copy-Item -Path $jsonPath -Destination $backupPath -Force
+        $backupMade = $true
         Write-Log "バックアップを作成しました: events.json.bak" 'Green'
     } else {
         Write-Log "events.json が存在しないため、バックアップはスキップします" 'Yellow'
@@ -486,7 +509,12 @@ try {
     Write-Log "エラー: $msg" 'Red'
 
     # --- 復元 ---
-    if (Test-Path $backupPath) {
+    # 今回の実行でバックアップを作る前に失敗した場合、events.json はまだ何も変わっていない。
+    # そこで古い events.json.bak（前回以前のもの）で上書きすると、かえってデータが
+    # 巻き戻ってしまう（2026-10-25 に実際に起きた）。今回バックアップを作ったときだけ戻す。
+    if (-not $backupMade) {
+        Write-Log "バックアップを作る前に失敗したため、events.json は変更していません（復元は不要）" 'Yellow'
+    } elseif (Test-Path $backupPath) {
         $bakProblem = Get-JsonProblem -Path $backupPath
         if ($bakProblem) {
             Write-Log "バックアップも壊れているため復元しませんでした: $bakProblem" 'Red'
